@@ -10,19 +10,29 @@ const useUserStore = create(
        * Establece los datos del usuario.
        * @param {Object} userData - Datos del usuario.
        */
-      setUser: (userData) => set({ user: userData }),
+      setUser: (userData) => {
+        // Guardar en localStorage para persistencia entre sesiones
+        if (userData.token) {
+          localStorage.setItem('auth_token', userData.token);
+        }
+        set({ user: userData });
+      },
 
       /**
        * Limpia los datos del usuario.
        */
-      clearUser: () => set({ user: { role: "None" } }),
+      clearUser: () => {
+        localStorage.removeItem('auth_token');
+        set({ user: { role: "None" } });
+      },
 
       /**
        * Verifica si hay sesión iniciada.
        */
       isLoggedIn: () => {
         const role = get().user?.role;
-        return role && role !== "None";
+        const token = localStorage.getItem('auth_token');
+        return role && role !== "None" && token;
       },
 
       /**
@@ -39,6 +49,11 @@ const useUserStore = create(
        * Verifica si el usuario es camarero.
        */
       isCamarero: () => get().user?.role === "camarero",
+
+      /**
+       * Obtiene el token de autenticación.
+       */
+      getToken: () => localStorage.getItem('auth_token'),
     }),
     {
       name: "user-storage",

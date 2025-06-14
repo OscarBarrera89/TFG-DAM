@@ -86,7 +86,6 @@ function Login() {
       if (response.ok) {
         // Guardar el usuario y token en el store
         setUser({ ...data.user, token: data.token });
-        alert("Inicio de sesión exitoso");
         navigate("/home/bienvenida");
       } else {
         setErrors({

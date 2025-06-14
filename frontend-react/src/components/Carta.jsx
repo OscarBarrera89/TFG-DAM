@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Box, Container, Typography, TextField, Button, Grid, Card, CardMedia, CardContent, CardActions, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem } from "@mui/material";
+import { Box, Container, Typography, TextField, Button, Grid, Card, CardMedia, CardContent, CardActions, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select } from "@mui/material";
 import "mdb-react-ui-kit/dist/css/mdb.min.css";
 import { useNavigate } from "react-router";
 import useUserStore from "../stores/useUserStore";
-import { apiUrl } from "../config";
+import { apiUrl, getAuthHeaders } from "../config";
 
 function Carta() {
   const navigate = useNavigate();
@@ -26,35 +26,40 @@ function Carta() {
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
-    async function getCategorias() {
+    const fetchCategories = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}categories`, {
           method: "GET",
+          credentials: "include",
+          headers
         });
         if (!response.ok) throw new Error("Error al cargar las categorías");
         const data = await response.json();
-        setCategories([{ id: 0, name: "Todas" }, ...data]);
+        setCategories(data);
       } catch (err) {
         setError(err.message);
       }
-    }
-    getCategorias();
-  }, []);
+    };
 
-  useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchMenuItems = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}products`, {
           method: "GET",
+          credentials: "include",
+          headers
         });
-        if (!response.ok) throw new Error("Error al cargar los productos");
+        if (!response.ok) throw new Error("Error al cargar el menú");
         const data = await response.json();
         setMenuItems(data);
       } catch (err) {
         setError(err.message);
       }
     };
-    fetchProducts();
+
+    fetchCategories();
+    fetchMenuItems();
   }, []);
 
   const filteredItems = menuItems.filter((item) => {
@@ -128,25 +133,11 @@ function Carta() {
     if (!validateForm()) return;
 
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("XSRF-TOKEN"))
-        ?.split("=")[1];
-
-      if (!csrfToken) throw new Error("No se encontró el token CSRF");
-
-      const headers = {
-        "Content-Type": "application/json",
-        "X-XSRF-TOKEN": decodeURIComponent(csrfToken),
-      };
+      const headers = await getAuthHeaders();
+      let response;
 
       if (isEditing) {
-        const response = await fetch(`${apiUrl}products/${currentItem.id}`, {
+        response = await fetch(`${apiUrl}products/${currentItem.id}`, {
           method: "PUT",
           credentials: "include",
           headers,
@@ -165,7 +156,7 @@ function Carta() {
         const updatedItem = await response.json();
         setMenuItems(menuItems.map((item) => (item.id === currentItem.id ? updatedItem : item)));
       } else {
-        const response = await fetch(`${apiUrl}products`, {
+        response = await fetch(`${apiUrl}products`, {
           method: "POST",
           credentials: "include",
           headers,
@@ -177,7 +168,6 @@ function Carta() {
             image: currentItem.image,
           }),
         });
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Error al añadir el producto");
@@ -197,22 +187,11 @@ function Carta() {
       return;
     }
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: "GET",
-        credentials: "include",
-      });
-      const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("XSRF-TOKEN"))
-        ?.split("=")[1];
-      if (!csrfToken) throw new Error("No se encontró el token CSRF");
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}products/${id}`, {
         method: "DELETE",
         credentials: "include",
-        headers: {
-          "X-XSRF-TOKEN": decodeURIComponent(csrfToken),
-        },
+        headers
       });
       if (!response.ok) {
         const errorData = await response.json();

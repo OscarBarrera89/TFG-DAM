@@ -23,7 +23,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import "mdb-react-ui-kit/dist/css/mdb.min.css";
 import useUserStore from "../stores/useUserStore";
 import dayjs from "dayjs";
-import { apiUrl } from "../config";
+import { apiUrl, getAuthHeaders } from "../config";
 
 function Reservas() {
   const { user } = useUserStore();
@@ -46,19 +46,6 @@ function Reservas() {
   const isPastOrMonday = (date) => {
     const today = dayjs().startOf("day");
     return date.isBefore(today, "day") || date.day() === 1;
-  };
-
-  const getCsrfToken = async () => {
-    await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-      method: "GET",
-      credentials: "include",
-    });
-    const csrfToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("XSRF-TOKEN"))
-      ?.split("=")[1];
-    if (!csrfToken) throw new Error("No se encontró el token CSRF");
-    return decodeURIComponent(csrfToken);
   };
 
   useEffect(() => {
@@ -87,9 +74,11 @@ function Reservas() {
   useEffect(() => {
     const fetchTables = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}tables`, {
           method: "GET",
           credentials: "include",
+          headers
         });
         if (!response.ok) throw new Error("Error al cargar las mesas");
         const data = await response.json();
@@ -105,9 +94,11 @@ function Reservas() {
     const fetchUserReservations = async () => {
       if (user) {
         try {
+          const headers = await getAuthHeaders();
           const response = await fetch(`${apiUrl}reservations/user`, {
             method: "GET",
             credentials: "include",
+            headers,
           });
           if (!response.ok) throw new Error("Error al cargar las reservas del usuario");
           const data = await response.json();
@@ -122,14 +113,11 @@ function Reservas() {
 
   const handleCancelReservation = async (id) => {
     try {
-      const csrfToken = await getCsrfToken();
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}reservations/${id}/cancel`, {
         method: "PUT",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-XSRF-TOKEN": csrfToken,
-        },
+        headers,
         body: JSON.stringify({ status: "cancelled" }),
       });
 
@@ -151,35 +139,35 @@ function Reservas() {
     }
   };
 
-  const checkForConflictingReservation = async (tableId, date, time) => {
-    try {
-      const csrfToken = await getCsrfToken();
-      const response = await fetch(`${apiUrl}reservations/check`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-XSRF-TOKEN": csrfToken,
-        },
-        body: JSON.stringify({
-          table_id: parseInt(tableId),
-          date: date.toISOString().split("T")[0],
-          time,
-        }),
-      });
+  // const checkForConflictingReservation = async (tableId, date, time) => {
+  //   try {
+  //     const csrfToken = await getCsrfToken();
+  //     const response = await fetch(`${apiUrl}reservations/check`, {
+  //       method: "POST",
+  //       credentials: "include",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         "X-XSRF-TOKEN": csrfToken,
+  //       },
+  //       body: JSON.stringify({
+  //         table_id: parseInt(tableId),
+  //         date: date.toISOString().split("T")[0],
+  //         time,
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al verificar conflictos de reserva");
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.message || "Error al verificar conflictos de reserva");
+  //     }
 
-      const data = await response.json();
-      return data.exists;
-    } catch (err) {
-      setError(err.message);
-      return false;
-    }
-  };
+  //     const data = await response.json();
+  //     return data.exists;
+  //   } catch (err) {
+  //     setError(err.message);
+  //     return false;
+  //   }
+  // };
 
   const formatDateLocal = (dateInput) => {
   const date = new Date(dateInput);
@@ -190,8 +178,53 @@ function Reservas() {
   const localDate = new Date(date.getTime() - offset * 60 * 1000);
   return localDate.toISOString().split("T")[0];
 };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${apiUrl}reservations`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          date: formatDateLocal(selectedDate),
+          time: selectedTime,
+          people: parseInt(people),
+          table_id: parseInt(selectedTable),
+          name: name,
+          email: email
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al crear la reserva");
+      }
+
+      const data = await response.json();
+      setConfirmation(data);
+      setSelectedDate(null);
+      setSelectedTime("");
+      setSelectedTable("");
+      setPeople(2);
+      setName("");
+      setEmail("");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const getMaxPeopleForTable = (tableId) => {
+    const table = tables.find((t) => t.id === parseInt(tableId));
+    return table ? Math.min(table.capacity + 1, 8) : 8;
+  };
+  const getMinPeopleForTable = (tableId) => {
+    const table = tables.find((t) => t.id === parseInt(tableId));
+    return table ? Math.min(table.capacity - 1, 8) : 2;
+  };
+
+  const validateForm = () => {
     if (
       selectedDate &&
       selectedTime &&
@@ -204,81 +237,21 @@ function Reservas() {
       const selectedTableObj = tables.find((t) => t.id === parseInt(selectedTable));
       if (!selectedTableObj) {
         setConfirmation("Por favor, selecciona una mesa válida.");
-        return;
+        return false;
       }
       if (people > selectedTableObj.capacity + 1) {
         setConfirmation(
           `No puedes reservar para ${people} personas en una mesa con capacidad de ${selectedTableObj.capacity}. El máximo permitido es ${selectedTableObj.capacity + 1}.`
         );
-        return;
+        return false;
       }
-
-      try {
-        const hasConflict = await checkForConflictingReservation(
-          selectedTable,
-          selectedDate,
-          selectedTime
-        );
-
-        if (hasConflict) {
-          setConfirmation(
-            "Ya existe una reserva para esta mesa, fecha y hora. Por favor, selecciona otro horario o mesa."
-          );
-          return;
-        }
-
-        const csrfToken = await getCsrfToken();
-        const response = await fetch(`${apiUrl}reservations`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-XSRF-TOKEN": csrfToken,
-            "Accept": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: user?.id,
-            table_id: parseInt(selectedTable),
-            date: formatDateLocal(selectedDate),
-            time: selectedTime,
-            people: parseInt(people),
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Error al realizar la reserva");
-        }
-
-        const newReservation = await response.json();
-        setConfirmation(
-          `Reserva confirmada para ${name} el ${selectedDate.format('L')} a las ${selectedTime} en la mesa ${selectedTableObj.location} para ${people} personas. Se ha enviado un email a ${email}`
-        );
-        setUserReservations([...userReservations, newReservation]);
-        setSelectedDate(null);
-        setSelectedTime("");
-        setSelectedTable("");
-        setEmail(user ? user.email : "");
-        setName(user ? user.name : "");
-        setPeople(1);
-        setError(null);
-      } catch (err) {
-        setConfirmation(err.message);
-      }
+      return true;
     } else {
       setConfirmation(
         "Por favor, completa todos los campos y asegúrate de que el número de personas esté entre 2 y 8."
       );
+      return false;
     }
-  };
-
-  const getMaxPeopleForTable = (tableId) => {
-    const table = tables.find((t) => t.id === parseInt(tableId));
-    return table ? Math.min(table.capacity + 1, 8) : 8;
-  };
-  const getMinPeopleForTable = (tableId) => {
-    const table = tables.find((t) => t.id === parseInt(tableId));
-    return table ? Math.min(table.capacity - 1, 8) : 2;
   };
 
   return (

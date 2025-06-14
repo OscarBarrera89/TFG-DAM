@@ -22,6 +22,10 @@ import {
   DialogContent,
   DialogActions,
   Badge,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -29,7 +33,7 @@ import 'mdb-react-ui-kit/dist/css/mdb.min.css';
 import { useNavigate } from 'react-router';
 import useUserStore from '../stores/useUserStore';
 import dayjs from 'dayjs';
-import { apiUrl } from '../config';
+import { apiUrl, getAuthHeaders } from '../config';
 
 function PanelAdmin() {
   const navigate = useNavigate();
@@ -69,19 +73,6 @@ function PanelAdmin() {
     return date.isBefore(today, "day") || date.day() === 1;
   };
 
-  const getCsrfToken = async () => {
-    await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-      method: "GET",
-      credentials: "include",
-    });
-    const csrfToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("XSRF-TOKEN"))
-      ?.split("=")[1];
-    if (!csrfToken) throw new Error("No se encontró el token CSRF");
-    return decodeURIComponent(csrfToken);
-  };
-
   const getMaxPeopleForTable = (tableId) => {
     const table = tables.find((t) => t.id === parseInt(tableId));
     return table ? Math.min(table.capacity + 1, 8) : 8;
@@ -101,9 +92,11 @@ function PanelAdmin() {
   useEffect(() => {
     async function getCategories() {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}categories`, {
           method: 'GET',
           credentials: 'include',
+          headers
         });
         if (!response.ok) throw new Error('Error al cargar las categorías');
         const data = await response.json();
@@ -118,9 +111,11 @@ function PanelAdmin() {
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}products`, {
           method: 'GET',
           credentials: 'include',
+          headers
         });
         if (!response.ok) throw new Error('Error al cargar el menú');
         const data = await response.json();
@@ -135,9 +130,11 @@ function PanelAdmin() {
   useEffect(() => {
     const fetchTables = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}tables`, {
           method: 'GET',
           credentials: 'include',
+          headers
         });
         if (!response.ok) throw new Error('Error al cargar las mesas');
         const data = await response.json();
@@ -152,9 +149,11 @@ function PanelAdmin() {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}reservations`, {
           method: 'GET',
           credentials: 'include',
+          headers
         });
         if (!response.ok) throw new Error('Error al cargar las reservas');
         const data = await response.json();
@@ -169,9 +168,11 @@ function PanelAdmin() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(`${apiUrl}users`, {
           method: 'GET',
           credentials: 'include',
+          headers
         });
         if (!response.ok) throw new Error('Error al cargar los usuarios');
         const data = await response.json();
@@ -185,22 +186,11 @@ function PanelAdmin() {
 
   const handleDeleteMenuItem = async (id) => {
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('XSRF-TOKEN'))
-        ?.split('=')[1];
-      if (!csrfToken) throw new Error('No se encontró el token CSRF');
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}products/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'X-XSRF-TOKEN': decodeURIComponent(csrfToken),
-        },
+        headers
       });
       if (!response.ok) throw new Error('Error al eliminar el producto');
       setMenuItems(menuItems.filter((item) => item.id !== id));
@@ -211,22 +201,11 @@ function PanelAdmin() {
 
   const handleDeleteReservation = async (id) => {
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('XSRF-TOKEN'))
-        ?.split('=')[1];
-      if (!csrfToken) throw new Error('No se encontró el token CSRF');
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}reservations/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'X-XSRF-TOKEN': decodeURIComponent(csrfToken),
-        },
+        headers
       });
       if (!response.ok) throw new Error('Error al eliminar la reserva');
       setReservations(reservations.filter((reservation) => reservation.id !== id));
@@ -237,23 +216,11 @@ function PanelAdmin() {
 
   const handleConfirmReservation = async (id) => {
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('XSRF-TOKEN'))
-        ?.split('=')[1];
-      if (!csrfToken) throw new Error('No se encontró el token CSRF');
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}reservations/${id}/confirm`, {
         method: 'PUT',
         credentials: 'include',
-        headers: {
-          'X-XSRF-TOKEN': decodeURIComponent(csrfToken),
-          'Content-Type': 'application/json',
-        },
+        headers
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -268,22 +235,11 @@ function PanelAdmin() {
 
   const handleDeleteUser = async (id) => {
     try {
-      await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      const csrfToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('XSRF-TOKEN'))
-        ?.split('=')[1];
-      if (!csrfToken) throw new Error('No se encontró el token CSRF');
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}users/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'X-XSRF-TOKEN': decodeURIComponent(csrfToken),
-        },
+        headers
       });
       if (!response.ok) throw new Error('Error al eliminar el usuario');
       setUsers(users.filter((user) => user.id !== id));
@@ -294,13 +250,11 @@ function PanelAdmin() {
 
   const handleDeleteTable = async (id) => {
     try {
-      const csrfToken = await getCsrfToken();
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}tables/${id}`, {
         method: "DELETE",
         credentials: "include",
-        headers: {
-          "X-XSRF-TOKEN": csrfToken,
-        },
+        headers
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -389,11 +343,7 @@ function PanelAdmin() {
     if (!validateForm()) return;
 
     try {
-      const csrfToken = await getCsrfToken();
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-XSRF-TOKEN': csrfToken,
-      };
+      const headers = await getAuthHeaders();
 
       let response;
       if (modalType === 'menu') {
