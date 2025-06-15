@@ -18,10 +18,10 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import { useState } from "react";
-import { apiUrl } from "../config";
+import { apiUrl, getAuthHeaders } from "../config";
 
 function Menu() {
-  const { user, clearUser } = useUserStore();
+  const { user, clearUser} = useUserStore();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -40,28 +40,11 @@ function Menu() {
 
   const handleLogout = async () => {
     try {
-      const csrfResponse = await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!csrfResponse.ok) {
-        throw new Error("Error al obtener el token CSRF");
-      }
-
-      const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("XSRF-TOKEN"))
-        ?.split("=")[1];
-
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}logout`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-XSRF-TOKEN": decodeURIComponent(csrfToken),
-        },
         credentials: "include",
+        headers,
       });
 
       if (response.ok) {
@@ -95,7 +78,7 @@ function Menu() {
       <List>
         {user?.role === "None" ? (
           <>
-            <ListItemButton component={Link} to="/home/bienvenida" onClick={handleDrawerToggle}>
+            <ListItemButton component={Link} to="/" onClick={handleDrawerToggle}>
               <ListItemText primary="Inicio" primaryTypographyProps={{ fontWeight: "medium" }} />
             </ListItemButton>
             <ListItemButton component={Link} to="/home/menu" onClick={handleDrawerToggle}>
@@ -107,7 +90,7 @@ function Menu() {
           </>
         ) : (
           <>
-            <ListItemButton component={Link} to="/home/bienvenida" onClick={handleDrawerToggle}>
+            <ListItemButton component={Link} to="/" onClick={handleDrawerToggle}>
               <ListItemText primary="Inicio" primaryTypographyProps={{ fontWeight: "medium" }} />
             </ListItemButton>
             <ListItemButton component={Link} to="/home/menu" onClick={handleDrawerToggle}>

@@ -36,7 +36,7 @@ function Footer() {
     },
     {
       name: "GitHub",
-      url: "https://github.com/topburgers",
+      url: "https://github.com/OscarBarrera89/TFG-DAM",
       icon: <GitHub />,
     },
   ];

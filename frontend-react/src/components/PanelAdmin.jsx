@@ -233,21 +233,6 @@ function PanelAdmin() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    try {
-      const headers = await getAuthHeaders();
-      const response = await fetch(`${apiUrl}users/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers
-      });
-      if (!response.ok) throw new Error('Error al eliminar el usuario');
-      setUsers(users.filter((user) => user.id !== id));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   const handleDeleteTable = async (id) => {
     try {
       const headers = await getAuthHeaders();
@@ -755,14 +740,6 @@ function PanelAdmin() {
                           }}
                         >
                           Editar
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={() => handleDeleteUser(item.id)}
-                          sx={{ "&:hover": { backgroundColor: "#E6240B", color: "white" } }}
-                        >
-                          Eliminar
                         </Button>
                       </TableCell>
                     </TableRow>

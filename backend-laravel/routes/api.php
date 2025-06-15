@@ -14,10 +14,10 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/categories', [CategoryController::class, 'show']);
 Route::get('/products', [ProductController::class, 'show']);
-Route::post('/logout', [AuthController::class, 'logout']);
 
 // Rutas protegidas por auth:sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/users', [AuthController::class, 'show']);
     Route::put('/users/{user}', [AuthController::class, 'update']);
     Route::post('/products', [ProductController::class, 'store']);

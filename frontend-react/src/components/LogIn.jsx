@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { useNavigate, Link as RouterLink } from "react-router";
 import useUserStore from "../stores/useUserStore";
-import { apiUrl } from "../config";
+import { apiUrl, getAuthHeaders  } from "../config";
 
 function Login() {
   const navigate = useNavigate();
@@ -46,35 +46,12 @@ function Login() {
     if (!validate()) return;
 
     try {
-      // Obtener el token CSRF de Sanctum
-      const csrfResponse = await fetch(`${apiUrl}sanctum/csrf-cookie`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (!csrfResponse.ok) {
-        throw new Error("Error al obtener el token CSRF");
-      }
-
-      // Obtener el token CSRF desde la cookie
-      const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("XSRF-TOKEN"))
-        ?.split("=")[1];
-
-      if (!csrfToken) {
-        throw new Error("No se encontró el token CSRF en las cookies");
-      }
-
       // Enviar solicitud de login
+      const headers = await getAuthHeaders();
       const response = await fetch(`${apiUrl}login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-XSRF-TOKEN": decodeURIComponent(csrfToken),
-        },
         credentials: "include",
+        headers,
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
